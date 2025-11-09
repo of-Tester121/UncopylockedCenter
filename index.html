@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <title>Untitled</title>
+    
+
+  </head>
+    
+  <body>
+  <!-- Tailwind + fonts -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { neon: ['Orbitron', 'sans-serif'], mono: ['"Source Code Pro"', 'monospace'] },
+      }
+    }
+  }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+
+<!-- PAGE -->
+<div id="app" class="min-h-screen relative overflow-hidden bg-black">
+  <!-- Matrix Canvas Background -->
+  <canvas id="matrix" class="absolute inset-0 -z-10"></canvas>
+
+  <!-- Main blurred area (will clear after unlock) -->
+  <div id="blur-wrap" class="min-h-screen transition-all duration-700 backdrop-blur-sm">
+    <div class="min-h-screen flex flex-col items-center justify-start pt-24 px-6">
+      <h1 class="text-5xl font-neon text-cyan-300 drop-shadow-[0_0_30px_rgba(0,255,255,0.9)] mb-6">Uncopylocked Center</h1>
+      <p class="text-cyan-200/60 mb-8 font-mono">Enter the terminal to unlock downloads.</p>
+
+      <!-- Categories -->
+      <div id="categories" class="flex gap-4 mb-10">
+        <button class="tab-btn neon-tab px-6 py-3 rounded-xl border border-cyan-400 font-mono text-cyan-200 hover:scale-105 transition" data-category="Main">📁 Main</button>
+        <button class="tab-btn neon-tab px-6 py-3 rounded-xl border border-cyan-400 font-mono text-cyan-200 hover:scale-105 transition" data-category="SPECIAL">⭐ Special</button>
+        <button class="tab-btn neon-tab px-6 py-3 rounded-xl border border-cyan-400 font-mono text-cyan-200 hover:scale-105 transition" data-category="ExtraStuff">🧩 Extra Stuff</button>
+      </div>
+
+      <!-- Files Grid -->
+      <div id="content" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 w-full max-w-5xl pb-24">
+        <!-- JS populates -->
+      </div>
+    </div>
+  </div>
+
+  <!-- LOCK TERMINAL OVERLAY -->
+  <div id="lock-screen" class="fixed inset-0 z-50 flex items-center justify-center">
+    <div class="w-full max-w-2xl mx-6 p-8 rounded-2xl bg-black/75 border border-cyan-400 shadow-[0_0_40px_rgba(0,255,255,0.12)] backdrop-blur-md">
+      <div class="flex items-start gap-6">
+        <div class="w-3 h-3 rounded-full bg-red-500 shadow-[0_0_8px_rgba(255,80,80,0.8)]"></div>
+        <div class="flex-1">
+          <h2 class="text-2xl font-neon text-cyan-300 mb-2">ACCESS GATE — TERMINAL</h2>
+          <div class="font-mono text-cyan-100/70 text-sm mb-4">Type the password to unlock downloads. Password is case-sensitive.</div>
+
+          <!-- Terminal box -->
+          <div id="terminal" class="bg-black/60 border border-cyan-500 rounded-lg p-4 font-mono text-cyan-200 relative overflow-hidden">
+            <!-- Terminal header fake -->
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-2 h-2 rounded-full bg-red-500"></div>
+              <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+              <div class="w-2 h-2 rounded-full bg-green-400"></div>
+              <div class="ml-3 text-xs text-cyan-200/60">https://discord.gg/Sr3EAEDaxH</div>
+            </div>
+
+            <!-- typed area -->
+            <div id="typed-area" class="min-h-[48px] text-lg">
+              <span id="prompt" class="text-cyan-300">enter password: </span>
+              <span id="typed" aria-hidden="true"></span>
+              <span id="cursor" class="inline-block w-1 h-6 align-middle ml-1 bg-cyan-300 animate-blink"></span>
+            </div>
+
+            <!-- invisible real input to capture keystrokes -->
+            <input id="real-input" type="password" autocomplete="off" class="absolute left-0 top-0 opacity-0 pointer-events-none" />
+            <div id="feedback" class="text-sm mt-3 h-5 text-red-400 invisible">Wrong password</div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="mt-5 flex gap-3">
+            <button id="enter-btn" class="px-4 py-2 rounded-lg bg-cyan-500/20 border border-cyan-400 text-cyan-200 hover:scale-105 transition font-mono">ENTER</button>
+            <button id="demo-btn" class="px-4 py-2 rounded-lg bg-transparent border border-cyan-400 text-cyan-200 hover:bg-cyan-500/10 transition font-mono">Show Hint</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DOWNLOAD MODAL -->
+  <div id="modal" class="hidden fixed inset-0 z-40 flex items-center justify-center bg-black/70">
+    <div class="bg-black/60 border border-cyan-300 rounded-3xl p-8 text-center text-cyan-200 font-mono shadow-[0_0_40px_rgba(0,255,255,0.08)] animate-scaleIn">
+      <div class="text-4xl mb-3">⬇️</div>
+      <div class="text-lg font-semibold mb-1">Downloading...</div>
+      <div class="text-sm opacity-80">Preparing file securely</div>
+    </div>
+  </div>
+</div>
+
+<!-- Styles -->
+<style>
+  .neon-tab { box-shadow: 0 0 12px rgba(0,255,255,0.06); }
+  .animate-blink { animation: blink 1s steps(2, start) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes scaleIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+  .animate-scaleIn { animation: scaleIn .25s ease-out forwards; }
+  #cursor { background: linear-gradient(90deg, #00f6ff, #00ffd1); width: 10px; height: 20px; display:inline-block; vertical-align: text-bottom; }
+  @media (max-width: 640px) { #cursor { height:18px; } }
+  .neon-card { box-shadow: 0 0 30px rgba(0,255,255,0.06); transition: transform .25s; }
+  .neon-card:hover { transform: translateY(-6px) scale(1.02); box-shadow: 0 0 40px rgba(0,255,255,0.18); }
+  #matrix { width: 100%; height: 100%; display: block; }
+</style>
+
+<!-- Script -->
+<script>
+/* ---------------------------
+   Matrix Background
+   --------------------------- */
+(function matrixBg(){
+  const canvas = document.getElementById('matrix');
+  const ctx = canvas.getContext('2d');
+  let w = canvas.width = innerWidth;
+  let h = canvas.height = innerHeight;
+  const cols = Math.floor(w / 20) + 1;
+  const ypos = Array(cols).fill(0);
+  const letters = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ@#$%&*あいうえおカタカナ'.split('');
+
+  function draw() {
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = '15px "Source Code Pro", monospace';
+    ypos.forEach((y, ind) => {
+      const text = letters[Math.floor(Math.random() * letters.length)];
+      const x = ind * 20;
+      ctx.fillStyle = 'rgba(0,255,200,' + (Math.random() * 0.6 + 0.2) + ')';
+      ctx.fillText(text, x, y);
+      if (y > 100 + Math.random() * 10000) ypos[ind] = 0;
+      else ypos[ind] = y + 20;
+    });
+  }
+  let anim;
+  function loop() { draw(); anim = requestAnimationFrame(loop); }
+  loop();
+  addEventListener('resize', () => {
+    cancelAnimationFrame(anim);
+    w = canvas.width = innerWidth;
+    h = canvas.height = innerHeight;
+    loop();
+  });
+})();
+
+/* ---------------------------
+   Unlock Terminal Logic
+   --------------------------- */
+const PASSWORD = "Edu Studio"; 
+const realInput = document.getElementById('real-input');
+const typedEl = document.getElementById('typed');
+const lockScreen = document.getElementById('lock-screen');
+const blurWrap = document.getElementById('blur-wrap');
+const enterBtn = document.getElementById('enter-btn');
+const demoBtn = document.getElementById('demo-btn');
+const feedback = document.getElementById('feedback');
+
+document.getElementById('terminal').addEventListener('click', () => realInput.focus());
+realInput.addEventListener('input', () => typedEl.textContent = '*'.repeat(realInput.value.length));
+realInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptUnlock(); });
+enterBtn.addEventListener('click', attemptUnlock);
+demoBtn.addEventListener('click', () => {
+  const hint = "Ed"; let i = 0;
+  const interval = setInterval(() => {
+    typedEl.textContent = hint.slice(0, ++i);
+    if (i === hint.length) setTimeout(() => { typedEl.textContent = ''; clearInterval(interval); }, 800);
+  }, 120);
+});
+
+function attemptUnlock() {
+  const val = realInput.value;
+  if (val === PASSWORD) {
+    lockScreen.style.transition = 'opacity .7s ease, transform .7s ease';
+    lockScreen.style.opacity = '0';
+    lockScreen.style.transform = 'translateY(-30px) scale(.98)';
+    setTimeout(() => { lockScreen.style.display = 'none'; }, 700);
+    blurWrap.classList.remove('backdrop-blur-sm');
+    flashNeon();
+  } else {
+    feedback.classList.remove('invisible');
+    feedback.classList.add('visible');
+    realInput.value = '';
+    typedEl.textContent = '';
+    const t = document.getElementById('terminal');
+    t.animate([{ transform: 'translateX(0px)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0px)' }], { duration: 300 });
+    setTimeout(() => feedback.classList.add('invisible'), 1600);
+  }
+}
+
+function flashNeon() {
+  const title = document.querySelector('.font-neon');
+  if (!title) return;
+  title.animate([
+    { textShadow: '0 0 30px rgba(0,255,255,0.85)' },
+    { textShadow: '0 0 80px rgba(255,0,255,0.6)' },
+    { textShadow: '0 0 30px rgba(0,255,255,0.85)' }
+  ], { duration: 900, iterations: 1 });
+}
+
+/* ---------------------------
+   File Categories + Download
+   --------------------------- */
+const files = {
+  Main: [
+    { name: "Sab", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/666%20AND%201X1X1%20FULL%20SAB%20FILE.rbxl" },
+    { name: "MM2", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/MM2%20V.2.rbxl" },
+    { name: "PVB MODDED", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/PVB%20MODDED%201.0.rbxl" },
+  ],
+  SPECIAL: [
+    { name: "Grow A Garden But Everything is free", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/%5B%F0%9F%A4%91%5D%20Grow%20A%20Garden%20But%20Everything%20Is%20Free.rbxl" },
+    { name: "Dahood", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/Dalhood.rbxl" },
+  ],
+  ExtraStuff: [
+    { name: "Don't Wake Up The Brainrots", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/Don't%20Wake%20the%20Brainrots!.rbxl" },
+    { name: "2 Player Obby", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/2player%20obby.rbxl" },
+    { name: "BIG Paintball In Dev", url: "https://github.com/of-Tester121/Uncopylockeds/raw/refs/heads/main/BIG_Paintball_2_In-Dev%20(1).rbxl" },
+  ]
+};
+
+const content = document.getElementById('content');
+const tabBtns = document.querySelectorAll('.tab-btn');
+const modal = document.getElementById('modal');
+
+function renderCategory(category) {
+  content.innerHTML = '';
+  files[category].forEach(file => {
+    const card = document.createElement('div');
+    card.className = 'neon-card bg-black/60 border border-cyan-500 rounded-2xl p-6 text-center text-cyan-200';
+    card.innerHTML = `
+      <h3 class="text-lg font-semibold mb-3 font-mono">${file.name}</h3>
+      <div class="flex items-center justify-center gap-3">
+        <a href="#" class="download-btn px-4 py-2 rounded-md border border-cyan-400 font-mono" data-url="${file.url}">Download ⬇</a>
+        <a href="${file.url}" target="_blank" class="px-4 py-2 rounded-md border border-cyan-500 font-mono text-sm">Preview</a>
+      </div>
+    `;
+    content.appendChild(card);
+  });
+
+  document.querySelectorAll('.download-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (lockScreen.style.display !== 'none') {
+        const t = document.getElementById('terminal');
+        t.animate([{ transform:'translateY(0)' }, { transform:'translateY(-8px)' }, { transform:'translateY(0)' }], {duration:200});
+        return;
+      }
+      showModalAndDownload(btn.dataset.url);
+    });
+  });
+}
+
+function showModalAndDownload(url) {
+  modal.classList.remove('hidden');
+  setTimeout(() => {
+    modal.classList.add('hidden');
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }, 1600);
+}
+
+// default render
+renderCategory('Main');
+tabBtns[0].classList.add('bg-cyan-700/20');
+
+// tab switching
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => {
+    tabBtns.forEach(b => b.classList.remove('bg-cyan-700/20'));
+    btn.classList.add('bg-cyan-700/20');
+    renderCategory(btn.dataset.category);
+  });
+});
+
+setTimeout(() => { realInput.focus(); }, 400);
+</script>
+    
+  </body>
+  
+</html>
